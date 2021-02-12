@@ -63,7 +63,7 @@ namespace NpcDumper
 
         private static Npc CreateNewNPC(string NpcName, int NpcEntry, Npc.FactionType NpcFaction, ContinentId NpcContinentId, Vector3 NpcPosition, bool NpcCanFlyTo, Npc.NpcType NpcType)
         {
-            Npc NewNPC = new Npc
+            return new Npc
             {
                 Name = NpcName,
                 Entry = NpcEntry,
@@ -73,7 +73,6 @@ namespace NpcDumper
                 CanFlyTo = NpcCanFlyTo,
                 Type = NpcType,
             };
-            return NewNPC;
         }
 
         private static void ScanForNearbyTrainers()
@@ -86,11 +85,12 @@ namespace NpcDumper
                 
                 if (FactionStatus == "Friendly" || FactionStatus == "Honored" || FactionStatus == "Revered" || FactionStatus == "Exalted")
                 {                    
-                    if (ObjectManager.Me.Faction == 1)
+                    if (ObjectManager.Me.PlayerFaction == "Alliance")
+
                     {
                         PlyFactionNpcType = Vars.AllianceNPC;
                     }
-                    else
+                    else if (ObjectManager.Me.PlayerFaction == "Horde")
                     {
                         PlyFactionNpcType = Vars.HordeNPC;
                     }
