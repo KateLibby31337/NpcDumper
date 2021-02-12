@@ -24,11 +24,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-using Newtonsoft.Json;
 using robotManager.Helpful;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Windows.Forms;
 using wManager.Wow.Class;
 using wManager.Wow.Helpers;

@@ -27,7 +27,6 @@ SOFTWARE.
 // Local
 using NpcDumper;
 // WRobot
-using robotManager.Helpful;
 using wManager.Plugin;
 
 public class Main : IPlugin
