@@ -1,6 +1,7 @@
 ﻿using robotManager.Helpful;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -11,6 +12,7 @@ namespace NpcDumper
     public class Plugin
     {
         public static readonly string Name = "NpcDumper";
+        public static readonly string LogName = "[" + Plugin.Name + "]: ";
         public static bool IsRunning;
 
         public static void Start()
@@ -21,7 +23,7 @@ namespace NpcDumper
 
         public static void Stop()
         {
-            IsRunning = false;
+            IsRunning = false;            
         }
 
         private static void Tick()
@@ -37,7 +39,7 @@ namespace NpcDumper
                 }
                 catch (Exception error)
                 {
-                    Logging.WriteError("[" + Plugin.Name + "] Plugin.Tick(): " + (object)error, true);
+                    Logging.WriteError(Plugin.LogName + "Plugin.Tick(): " + (object)error, true);
                 }
                 Thread.Sleep(PluginSettings.CurrentSetting.TickSpeed);
 
@@ -46,7 +48,7 @@ namespace NpcDumper
 
         private static void Execute()
         {
-
+            NpcDumper.Pulse();
         }
 
     }

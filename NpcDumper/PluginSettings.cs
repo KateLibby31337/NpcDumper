@@ -18,14 +18,30 @@ namespace NpcDumper
         [DefaultValue(5000)]
         [Category("Settings")]
         [DisplayName("TickSpeed")]
-        [Description("MS Per Execution")]
+        [Description("MS Between NPC Scanning. (Set higher if experiencing lag from this plugin.)")]
         public int TickSpeed { get; set; }
+
+        [Setting]
+        [DefaultValue(false)]
+        [Category("Settings")]
+        [DisplayName("SaveNpc")]
+        [Description("If set to true save to npcdb file for future bot usage.")]
+        public bool SaveNpc { get; set; }
+
+        [Setting]
+        [DefaultValue(true)]
+        [Category("Settings")]
+        [DisplayName("AddNpcAsProfile")]
+        [Description("If set to true it is profile NPC (used by option AcceptOnlyProfileNpc).")]
+        public bool AddNpcAsProfile { get; set; }
 
         private PluginSettings()
         {
             TickSpeed = 5000;
+            SaveNpc = false;
+            AddNpcAsProfile = true;
 
-            ConfigWinForm(new System.Drawing.Point(600, 300), "["+Plugin.Name+"] "+Translate.Get("Settings"));
+            ConfigWinForm(new System.Drawing.Point(600, 300), Plugin.Name + Translate.Get("Settings"));
         }
 
         public static PluginSettings CurrentSetting { get; set; }
@@ -38,7 +54,7 @@ namespace NpcDumper
             }
             catch (Exception e)
             {
-                Logging.WriteError("[" + Plugin.Name + "] PluginSettings > Save(): " + e);
+                Logging.WriteError(Plugin.LogName + "PluginSettings > Save(): " + e);
                 return false;
             }
         }
@@ -57,7 +73,7 @@ namespace NpcDumper
             }
             catch (Exception e)
             {
-                Logging.WriteError("[" + Plugin.Name + "] PluginSettings > Load(): " + e);
+                Logging.WriteError(Plugin.LogName + "PluginSettings > Load(): " + e);
             }
             return false;
         }
