@@ -38,7 +38,6 @@ namespace NpcDumper
     [Serializable]
     public class PluginSettings : Settings
     {
-
         [Setting]
         [DefaultValue(5000)]
         [Category("Settings")]
@@ -59,6 +58,8 @@ namespace NpcDumper
         [DisplayName("AddNpcAsProfile")]
         [Description("If set to true it is profile NPC (used by option AcceptOnlyProfileNpc).")]
         public bool AddNpcAsProfile { get; set; }
+
+
 
         private PluginSettings()
         {
