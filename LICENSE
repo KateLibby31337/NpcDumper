@@ -1,6 +1,3 @@
-﻿// Written by https://github.com/KateLibby31337 https://wrobot.eu/profile/84021-katelibby/
-
-/*
 MIT License
 
 Copyright (c) 2021 KateLibby31337
@@ -22,32 +19,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-*/
-
-// Local
-using NpcDumper;
-// WRobot
-using robotManager.Helpful;
-using wManager.Plugin;
-
-public class Main : IPlugin
-{
-    public void Initialize()
-    {
-        PluginSettings.Load();
-        Plugin.Start();
-    }
-
-    public void Dispose()
-    {
-        Plugin.Stop();
-        PluginSettings.CurrentSetting.Save();
-    }
-
-    public void Settings()
-    {
-        PluginSettings.Load();
-        PluginSettings.CurrentSetting.ToForm();
-        PluginSettings.CurrentSetting.Save();
-    }
-}
