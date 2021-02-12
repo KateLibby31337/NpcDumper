@@ -11,7 +11,7 @@ namespace NpcDumper
 {
     public class Plugin
     {
-        public static readonly string Name = "NpcDumper";
+        public static readonly string Name = "TrainerScanner";
         public static readonly string LogName = "[" + Plugin.Name + "]: ";
         public static bool IsRunning;
 
