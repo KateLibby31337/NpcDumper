@@ -39,12 +39,25 @@ namespace NpcDumper
         public static Npc.FactionType AllianceNPC = (Npc.FactionType)Enum.Parse(typeof(Npc.FactionType), "Alliance"); // (cast)Enum.Parse(typeof(cast), "value");
         public static Npc.FactionType HordeNPC = (Npc.FactionType)Enum.Parse(typeof(Npc.FactionType), "Horde");
         public static Npc.FactionType NeutralNPC = (Npc.FactionType)Enum.Parse(typeof(Npc.FactionType), "Neutral");
-        public static Npc.NpcType MeClassNpcType = (Npc.NpcType)Enum.Parse(typeof(Npc.NpcType), ObjectManager.Me.WowClass.ToString() + "Trainer");  // NpcDB Type
+        public static string MeClassNpcType = ObjectManager.Me.WowClass.ToString() + "Trainer";  // NpcDB Type
         public static string MeClassTrainerNpcType = ObjectManager.Me.WowClass.ToString() + " Trainer"; // Tooltip Scanner Text under Npc Name <>
     }
 
     public class NpcDumper
     {
+        public static void AddVendorItemToBuy()
+        {
+            var itemToBuy = new wManager.Wow.Class.Buy
+            {
+                ItemName = "Instant Poison",
+                VendorItemClass = wManager.Wow.Class.Npc.NpcVendorItemClass.Consumable,
+                GoToVendorIfQuantityLessOrEqual = 5,
+                Quantity = 20,
+                ScriptCanCondition = "return ObjectManager.Me.Level >20 && ObjectManager.Me.WowClass == WoWClass.Rogue;"
+            };
+            wManager.wManagerSetting.CurrentSetting.BuyList.Add(itemToBuy);
+        }
+
         private static string GetNpcTypeText(ulong UnitGUID)
         {
             return Lua.LuaDoString<string>(@"
@@ -73,60 +86,43 @@ namespace NpcDumper
             };  
         }
 
-        private static void ScanForNearbyTrainers()
+        private static bool UnitHasNpcFlag(WoWUnit Unit,string FlagString)
         {
-            Npc.FactionType PlyFactionNpcType;
-            List<WoWUnit> TrainerList = ObjectManager.GetWoWUnitTrainer();
-            foreach (WoWUnit Trainer in TrainerList)
-            {
-
-                string VendorItem = "Book";
-                PlyFactionNpcType = Vars.NeutralNPC;
-                string FactionStatus = Trainer.Reaction.ToString();
-
-                if (FactionStatus == "Friendly" || FactionStatus == "Honored" || FactionStatus == "Revered" || FactionStatus == "Exalted")
-                {
-                    if (ObjectManager.Me.PlayerFaction == "Alliance")
-
-                    {
-                        PlyFactionNpcType = Vars.AllianceNPC;
-                    }
-                    else if (ObjectManager.Me.PlayerFaction == "Horde")
-                    {
-                        PlyFactionNpcType = Vars.HordeNPC;
-                    }
-                }
-                string NpcTypeText = GetNpcTypeText(Trainer.Guid);
-                if (NpcTypeText == Vars.MeClassTrainerNpcType)
-                {
-                    if (!NpcDB.NpcSimilarExist((ContinentId)Usefuls.ContinentId, Trainer.Entry, Trainer.Position, PlyFactionNpcType))
-                    {
-                        Logging.Write(Plugin.LogName + "Adding trainer " + Trainer.Name + " of type " + NpcTypeText + " to NpcDB.");
-                        Npc ClassTrainer = CreateNewNPC(Trainer.Name, Trainer.Entry, PlyFactionNpcType, (ContinentId)Usefuls.ContinentId, Trainer.Position, Trainer.IsFlying, Vars.MeClassNpcType, (Npc.NpcVendorItemClass)Enum.Parse(typeof(Npc.NpcVendorItemClass), VendorItem));
-                        NpcDB.AddNpc(ClassTrainer, PluginSettings.CurrentSetting.SaveNpc, PluginSettings.CurrentSetting.AddNpcAsProfile);
-                    }
-                }
-            }
+            return Unit.UnitNPCFlags.HasFlag((UnitNPCFlags)Enum.Parse(typeof(UnitNPCFlags), FlagString));
         }
+
         private static void ScanForNearbyNpcs()
         {
-            var Settings = PluginSettings.CurrentSetting;
-            string VendorItem;
+            PluginSettings Settings = PluginSettings.CurrentSetting;
+
             Npc.FactionType PlyFactionNpcType;
             List<WoWUnit> NpcList = ObjectManager.GetObjectWoWUnit();
-            foreach (WoWUnit Npc in NpcList)
+            foreach (WoWUnit NpcUnit in NpcList)
             {
-                if (Npc.UnitNPCFlags.HasFlag((UnitNPCFlags)Enum.Parse(typeof(UnitNPCFlags), "SellsAmmo")))
-                {
-                    VendorItem = "Arrow";
-                }
-                else
-                {
-                    VendorItem = "None";
-                }
+                string VendorItemClass = "None";
+                string NpcType = "None";
+                string NpcTypeText = GetNpcTypeText(NpcUnit.Guid);
                 PlyFactionNpcType = Vars.NeutralNPC;
-                string FactionStatus = Npc.Reaction.ToString();
+                string FactionStatus = NpcUnit.Reaction.ToString();
+                bool CreateNpcEntry = false;
 
+                // VendorItemClass and NpcType Logic
+                if (UnitHasNpcFlag(NpcUnit, "SellsAmmo"))
+                {
+                    NpcType = "Vendor";
+                    VendorItemClass = "Arrow";
+                    CreateNpcEntry = true;
+                }
+                if (UnitHasNpcFlag(NpcUnit, "CanTrain"))
+                {
+                    if (NpcTypeText == Vars.MeClassTrainerNpcType)
+                    {
+                        NpcType = Vars.MeClassNpcType;
+                        CreateNpcEntry = true;
+                    }
+                }
+                
+                // Faction Logic
                 if (FactionStatus == "Friendly" || FactionStatus == "Honored" || FactionStatus == "Revered" || FactionStatus == "Exalted")
                 {
                     if (ObjectManager.Me.IsAlliance)
@@ -138,22 +134,19 @@ namespace NpcDumper
                         PlyFactionNpcType = Vars.HordeNPC;
                     }
                 }
-                string NpcTypeText = GetNpcTypeText(Npc.Guid);
-                if (NpcTypeText == Vars.MeClassTrainerNpcType)
+
+                if (!NpcDB.NpcSimilarExist((ContinentId)Usefuls.ContinentId, NpcUnit.Entry, NpcUnit.Position, PlyFactionNpcType) && CreateNpcEntry)
                 {
-                    if (!NpcDB.NpcSimilarExist((ContinentId)Usefuls.ContinentId, Npc.Entry, Npc.Position, PlyFactionNpcType))
-                    {
-                        Logging.Write(Plugin.LogName + "Adding Npc " + Npc.Name + " of type " + NpcTypeText + " to NpcDB.");
-                        Npc NewNpc = CreateNewNPC(Npc.Name, Npc.Entry, PlyFactionNpcType, (ContinentId)Usefuls.ContinentId, Npc.Position, Npc.IsFlying, Vars.MeClassNpcType, (Npc.NpcVendorItemClass)Enum.Parse(typeof(Npc.NpcVendorItemClass), VendorItem));
-                        NpcDB.AddNpc(NewNpc, Settings.SaveNpc, Settings.AddNpcAsProfile);
-                    }
-                }
+                    Logging.Write(Plugin.LogName + "Adding Npc " + NpcUnit.Name + " of type " + NpcTypeText + " to NpcDB.");
+                    Npc NewNpc = CreateNewNPC(NpcUnit.Name, NpcUnit.Entry, PlyFactionNpcType, (ContinentId)Usefuls.ContinentId, NpcUnit.Position, NpcUnit.IsFlying, (Npc.NpcType)Enum.Parse(typeof(Npc.NpcType), NpcType), (Npc.NpcVendorItemClass)Enum.Parse(typeof(Npc.NpcVendorItemClass), VendorItemClass));
+                    NpcDB.AddNpc(NewNpc, Settings.SaveNpc, Settings.AddNpcAsProfile);
+                }                
             }
         }
 
         public static void Pulse()
         {
-            ScanForNearbyTrainers();
+            ScanForNearbyNpcs();
         }
     }
 }
