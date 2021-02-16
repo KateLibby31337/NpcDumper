@@ -81,7 +81,7 @@ namespace NpcDumper
 
     public class NpcDumper
     {
-        private static Npc CreateNewNPC(string NpcName, int NpcEntry, Npc.FactionType NpcFaction, ContinentId NpcContinentId, Vector3 NpcPosition, bool NpcCanFlyTo, Npc.NpcType NpcType, Npc.NpcVendorItemClass VendorItem)
+        private static Npc CreateNewNPC(string NpcName, int NpcEntry, Npc.FactionType NpcFaction, ContinentId NpcContinentId, Vector3 NpcPosition, bool NpcCanFlyTo, Npc.NpcType NpcType, Npc.NpcVendorItemClass VendorItem, string ScriptCanCondition="")
         {
             return new Npc
             {
@@ -95,6 +95,7 @@ namespace NpcDumper
                 VendorItemClass = VendorItem,
                 Save = Settings.SaveNpc,
                 CurrentProfileNpc = Settings.AddNpcAsProfile,
+                ScriptCanCondition = ScriptCanCondition,
             };
         }
 
@@ -103,6 +104,7 @@ namespace NpcDumper
         private static void ScanForNearbyNpcs()
         {
 
+            // Mailbox has to be scanned with a different method
             List<WoWGameObject> ObjectList = ObjectManager.GetWoWGameObjectByName("Mailbox");
             foreach (WoWGameObject Object in ObjectList)
             {
@@ -131,67 +133,65 @@ namespace NpcDumper
                     { PlyFactionNpcType = Vars.HordeNPC; }
                 }
 
-                // Improve Performance
-                if (NpcDB.NpcSimilarExist((ContinentId)Usefuls.ContinentId, NpcUnit.Entry, NpcUnit.Position, PlyFactionNpcType))
-                {
-                    continue;
-                }
-
-                string NpcTypeText = NpcUnit.GetTypeText();
-                // More Edgecases
-                if (NpcTypeText.Contains("Pet Trainer") || NpcTypeText.Contains("Weaponsmith Trainer"))
-                {
-                    continue;
-                }
+                
+                if (NpcDB.NpcSimilarExist((ContinentId)Usefuls.ContinentId, NpcUnit.Entry, NpcUnit.Position, PlyFactionNpcType)) { continue; }// Improve Performance
+                string NpcTypeText = NpcUnit.GetTypeText(); // Get Text under NPC Name <Paladin Trainer>
+                if (NpcTypeText.Contains("Pet Trainer") || NpcTypeText.Contains("Weaponsmith Trainer")) { continue; } // More Edgecases
+                if (new Vector3(0f,0f,0f) == NpcUnit.Position) { continue; } //Attempt fix 0,0,0 entry bug
 
                 // VendorItemClass and NpcType Logic                
                 List<string> NpcTypes = new List<string> { };
-                List<string> NpcVendorClasses = new List<string> { };                
-                
+                List<string> NpcVendorClasses = new List<string> { };
+
+                //NpcUnit.HasNpcFlag();
                 if (NpcUnit.HasNpcFlag("CanRepair")) { NpcTypes.Add("Repair"); } // If npc is Repair or Vendor
                 if (NpcUnit.HasNpcFlag("SellsAmmo")) { NpcVendorClasses.Add("Arrow"); NpcVendorClasses.Add("Bullet"); }
                 if (NpcUnit.HasNpcFlag("SellsFood")) { NpcVendorClasses.Add("Food"); } // If npc sells food
                 if (NpcUnit.HasNpcFlag("CanSell")) { if (!NpcTypes.Contains("Repair")) { NpcTypes.Add("Vendor"); } };
                 if (NpcUnit.HasNpcFlag("SellsReagents")) { NpcVendorClasses.Add("Reagent"); }; // Reagent / SellsReagents
                 if (NpcTypeText.Contains("Trade Supplies")) { NpcVendorClasses.Add("TradeGoods"); }; // TradeGoods / Npc type <Trade Supplies>
-                if (NpcTypeText.Contains("Trainer")) { NpcTypes.Add(NpcTypeText.TrimSubString("Trainer").Trim() + "Trainer");  }
+                if (NpcTypeText.Contains("Trainer")) { NpcTypes.Add(NpcTypeText.TrimSubString("Trainer").Trim() + "Trainer");  } // Trick to try to hit all trainers at once
 
                 // Create combinations of NpcType/VendorItemClass until both are "None"
-                List<Dictionary<string,string>> NpcEntryToAdd = new List<Dictionary<string,string>> {}; // Key:VendorItemClass Value:NpcType  Ex. "Arrow":"Vendor"
-                bool CreateNpcEntry = false;
-                int EntryCounter = 0;
-                while (true)
+                List<Dictionary<string,string>> NpcEntryToAdd = new List<Dictionary<string,string>> {}; // List of: Key:NpcType Value:VendorItemClass  Ex. List[1]="Vendor":"Arrow"
+                bool CreateNpcEntry = false; // Dont add the Npc unless true
+                int EntryCounter = 0; // Reset the Entries for the current Npc
+                while (true) // While there are types to filter in
                 {
-                    string FinalNpcType = "None";
-                    string FinalVendorClass = "None";
-                    if (NpcTypes.TryGetElement(EntryCounter, out string varNpcType))
-                    { FinalNpcType = varNpcType; }
-                    if (NpcVendorClasses.TryGetElement(EntryCounter, out string varVendorClass))
-                    { FinalVendorClass = varVendorClass; }
-                    if (!(FinalNpcType == "None" && FinalVendorClass == "None"))
+                    string FinalNpcType = "None"; // Set Base to None
+                    string FinalVendorClass = "None"; // Set Base to None
+                    if (NpcTypes.TryGetElement(EntryCounter, out string varNpcType)) // Tries to get the index [EntryCounter] of NpcTypes, if fails returns false
+                    { FinalNpcType = varNpcType; } // If the index exists, use the index's value
+                    if (NpcVendorClasses.TryGetElement(EntryCounter, out string varVendorClass)) // Tries to get the index [EntryCounter] of NpcVendorClasses, if fails returns false
+                    { FinalVendorClass = varVendorClass; } // If the index exists, use the index's value
+                    if (!(FinalNpcType == "None" && FinalVendorClass == "None")) // If we found either NpcType or VendorItemClass earlier that we care about, this is true
                     {
-                        var NpcEntry = new Dictionary<string,string> {};
-                        NpcEntry.Add(FinalNpcType, FinalVendorClass);
-                        NpcEntryToAdd.Add(NpcEntry);
-                        CreateNpcEntry = true;
+                        var NpcEntry = new Dictionary<string,string> {}; // Key:NpcType Value:VendorItemClass  Ex. "Vendor":"Arrow"
+                        NpcEntry.Add(FinalNpcType, FinalVendorClass); // Create Dictionary of found 1 found type:class into the list
+                        NpcEntryToAdd.Add(NpcEntry); // Add the type:class to the list
+                        CreateNpcEntry = true; // Flag that we want to make an npc entry
                     }
-                    else { break; }
-                    EntryCounter++;
+                    else { break; } // Break if we have gone through all the types:classes for the current unit
+                    EntryCounter++; // Increment to see if the unit has more types:classes to add
                 }
 
                 // Foreach combination of NpcType/VendorItemClass Add an NPC entry for that NPC // (Workaround that wRobot only allows one of each per npc)
-                if (CreateNpcEntry)
+                if (CreateNpcEntry) // Flag that we want to make an npc entry
                 {
-                    List<Npc> NpcEntryList = new List<Npc> { };
-                    foreach (Dictionary<string,string> NpcEntry in NpcEntryToAdd)
+                    List<Npc> NpcEntryList = new List<Npc> { }; //Final List of Npc Entries to add to wRobots NpcDb
+                    foreach (Dictionary<string,string> NpcEntry in NpcEntryToAdd) // for each Dictionary in the List (Key:NpcType Value:VendorItemClass  Ex. "Vendor":"Arrow")
                     {
-                        foreach (KeyValuePair<string,string> VendorData in NpcEntry)
+                        foreach (KeyValuePair<string,string> VendorData in NpcEntry) // For each K,V Pair, of each index of list
                         {
-                            Logging.Write(Plugin.LogName + $"Adding Npc {NpcUnit.Name} of Type:{VendorData.Key}, ItemClass:{VendorData.Value} to NpcDB.");
+                            // Create the NpcDb Entry and print to log
+                            Logging.Write(Plugin.LogName + $"Adding Npc {NpcUnit.Name} of Type:{VendorData.Key}, ItemClass:{VendorData.Value} to NpcDB."); // Print
                             Npc NewNpc = CreateNewNPC(NpcUnit.Name, NpcUnit.Entry, PlyFactionNpcType, (ContinentId)Usefuls.ContinentId, NpcUnit.Position, NpcUnit.IsFlying, (Npc.NpcType)Enum.Parse(typeof(Npc.NpcType), VendorData.Key), (Npc.NpcVendorItemClass)Enum.Parse(typeof(Npc.NpcVendorItemClass), VendorData.Value));
                             NpcEntryList.Add(NewNpc);
                         }
                     }
+                    // Wrobot internally runs some kind of duplication checking using NpcDB.NpcSimilarExist() on anything even lists of npcs being bulk added;
+                    // This is a problem as NpcSimilarExist does not have rich enough data to tell between a "Vendor":"Arrow" and "Repair":"GeneralGoods" which has to be split between 2 entrires
+                    // so we add directly to the NpcDB.ListNpc List<Npc>
                     NpcDB.ListNpc.AddRange(NpcEntryList);
                 }                
             }
