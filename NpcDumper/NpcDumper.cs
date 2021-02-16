@@ -132,11 +132,10 @@ namespace NpcDumper
                     else if (ObjectManager.Me.IsHorde)
                     { PlyFactionNpcType = Vars.HordeNPC; }
                 }
-
                 
                 if (NpcDB.NpcSimilarExist((ContinentId)Usefuls.ContinentId, NpcUnit.Entry, NpcUnit.Position, PlyFactionNpcType)) { continue; }// Improve Performance
                 string NpcTypeText = NpcUnit.GetTypeText(); // Get Text under NPC Name <Paladin Trainer>
-                if (NpcTypeText.Contains("Pet Trainer") || NpcTypeText.Contains("Weaponsmith Trainer")) { continue; } // More Edgecases
+                if (NpcTypeText.Contains("Pet Trainer") || NpcTypeText.Contains("Weaponsmith Trainer")) { continue; } // Fix Edgecases
                 if (new Vector3(0f,0f,0f) == NpcUnit.Position) { continue; } //Attempt fix 0,0,0 entry bug
 
                 // VendorItemClass and NpcType Logic                
@@ -144,6 +143,7 @@ namespace NpcDumper
                 List<string> NpcVendorClasses = new List<string> { };
 
                 //NpcUnit.HasNpcFlag();
+                //if (NpcUnit.HasNpcFlag("CanRepair")) { NpcTypes.Add("Repair"); } // If npc is Repair or Vendor
                 if (NpcUnit.HasNpcFlag("CanRepair")) { NpcTypes.Add("Repair"); } // If npc is Repair or Vendor
                 if (NpcUnit.HasNpcFlag("SellsAmmo")) { NpcVendorClasses.Add("Arrow"); NpcVendorClasses.Add("Bullet"); }
                 if (NpcUnit.HasNpcFlag("SellsFood")) { NpcVendorClasses.Add("Food"); } // If npc sells food

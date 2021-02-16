@@ -31,7 +31,7 @@ namespace NpcDumper
 {
     public static class Extensions
     {
-        public static bool TryGetElement(this List<string> ListString, int Index, out string Element)
+        public static bool TryGetElement(this List<string> ListString, int Index, out string Element) // Extends lists to add a more robust way of blind checking indexes
         {
             if (ListString == null || Index < 0 || Index >= ListString.Count)
             {
@@ -42,14 +42,19 @@ namespace NpcDumper
             return true;
         }
 
-        public static bool HasNpcFlag(this WoWUnit Unit, string FlagString)
+        public static bool HasNpcFlag(this WoWUnit Unit, string FlagString) // Extends WoWUnit to allow use of strings to check NpcUnit flags 
         {
             return Unit.UnitNPCFlags.HasFlag((UnitNPCFlags)Enum.Parse(typeof(UnitNPCFlags), FlagString));
         }
 
-        public static string GetTypeText(this WoWUnit Unit, ulong UnitGUID = 0)
+        public static bool HasUnitFlag(this WoWUnit Unit, string FlagString) // Extends WoWUnit to allow use of strings to check Unit flags
         {
-            if (UnitGUID == 0) { UnitGUID = Unit.Guid; }
+            return Unit.UnitFlags.HasFlag((UnitFlags)Enum.Parse(typeof(UnitFlags), FlagString));
+        }
+
+        public static string GetTypeText(this WoWUnit Unit) // Extends WoWUnit to scan for the text under npc name <Blacksmithing Trainer>
+        {
+            ulong UnitGUID = Unit.Guid;
             return Lua.LuaDoString<string>(@"
             local tooltip = _G[""TooltipScanner""] or CreateFrame(""GameTooltip"", ""TooltipScanner"", nil, ""GameTooltipTemplate"");
             tooltip:SetOwner(UIParent,""ANCHOR_NONE"");
@@ -61,7 +66,7 @@ namespace NpcDumper
             ");
         }
 
-        public static string TrimSubString(this string MainString, string SubString)
+        public static string TrimSubString(this string MainString, string SubString) // Extends string to easily remove a sub-string from a string
         {
             return MainString.Remove(MainString.IndexOf(SubString), SubString.Length);
         }
