@@ -59,6 +59,20 @@ namespace NpcDumper
         [Description("If set to true it is profile NPC (used by option AcceptOnlyProfileNpc).")]
         public bool AddNpcAsProfile { get; set; }
 
+        [Setting]
+        [DefaultValue(false)]
+        [Category("Settings")]
+        [DisplayName("NPCDB Scan Override")]
+        [Description("True to disable wRobot NPC scanning.")]
+        public bool DisableWrobotScanning { get; set; }
+
+        [Setting]
+        [DefaultValue(false)]
+        [Category("Settings")]
+        [DisplayName("Clear DB on start:")]
+        [Description("True to clear the NPCDB every wRobot play.")]
+        public bool ClearDBonStart { get; set; }
+
 
 
         private PluginSettings()

@@ -31,6 +31,7 @@ using wManager.Wow.Class;
 using wManager.Wow.Enums;
 using wManager.Wow.Helpers;
 using wManager.Wow.ObjectManager;
+using wManager;
 
 namespace NpcDumper
 {
@@ -43,33 +44,43 @@ namespace NpcDumper
         public static string MeClassTrainerNpcType = ObjectManager.Me.WowClass.ToString() + " Trainer"; // Tooltip Scanner Text under Npc Name <>
     }
 
-    public class NpcDumper
+    public class SettingsOverride
     {
-        public static void AddVendorItemToBuy()
+        public static wManagerSetting wRobotSettings = wManagerSetting.CurrentSetting;
+        public static void TrainerSettingsOverride()
         {
-            var itemToBuy = new wManager.Wow.Class.Buy
+            if (PluginSettings.CurrentSetting.ClearDBonStart)
             {
-                ItemName = "Instant Poison",
-                VendorItemClass = wManager.Wow.Class.Npc.NpcVendorItemClass.Consumable,
-                GoToVendorIfQuantityLessOrEqual = 5,
-                Quantity = 20,
-                ScriptCanCondition = "return ObjectManager.Me.Level >20 && ObjectManager.Me.WowClass == WoWClass.Rogue;"
-            };
-            wManager.wManagerSetting.CurrentSetting.BuyList.Add(itemToBuy);
+                Logging.Write($"[{Plugin.Name}]: Clearing NPCDB");
+                NpcDB.ListNpc.Clear();
+                
+            }
+            wRobotSettings.NpcMailboxSearchRadius = 0;
+            wRobotSettings.NpcScanVendor = false;
+            wRobotSettings.NpcScanMailboxes = false;
+            wRobotSettings.NpcScanAuctioneer = false;
+            wRobotSettings.NpcScanRepair = false;
         }
 
-        private static string GetNpcTypeText(ulong UnitGUID)
+        public static void PersonalSettingsOverride()
         {
-            return Lua.LuaDoString<string>(@"
-            local tooltip = _G[""TooltipScanner""] or CreateFrame(""GameTooltip"", ""TooltipScanner"", nil, ""GameTooltipTemplate"");
-            tooltip:SetOwner(UIParent,""ANCHOR_NONE"");
-            tooltip:ClearLines();
-            tooltip:SetHyperlink(""unit:" + UnitGUID.ToString("X") + @""")
-            text = _G[""TooltipScannerTextLeft""..2]:GetText();
-            tooltip:Hide();
-            return text
-            ");
+            NpcDB.AcceptOnlyProfileNpc = true;
+            wRobotSettings.TrainNewSkills = (ObjectManager.Me.Level % 2 == 0); // Train ever 2x Levels
+            wRobotSettings.AcceptOnlyProfileNpc = true;
+            wRobotSettings.Selling = true;
+            wRobotSettings.RandomJumping = true;
+            wRobotSettings.Repair = true;
+            wRobotSettings.SellPurple = false;
+            wRobotSettings.SellWhite = false;
+            wRobotSettings.SellBlue = false;
+            wRobotSettings.SellGreen = false;
+            wRobotSettings.LatencyMax = 200;
+            wRobotSettings.LatencyMin = 100;
         }
+    }
+
+    public class NpcDumper
+    {
 
         private static Npc CreateNewNPC(string NpcName, int NpcEntry, Npc.FactionType NpcFaction, ContinentId NpcContinentId, Vector3 NpcPosition, bool NpcCanFlyTo, Npc.NpcType NpcType, Npc.NpcVendorItemClass VendorItem)
         {
@@ -83,63 +94,86 @@ namespace NpcDumper
                 CanFlyTo = NpcCanFlyTo,
                 Type = NpcType,
                 VendorItemClass = VendorItem,
-            };  
+                Save = Settings.SaveNpc,
+                CurrentProfileNpc = Settings.AddNpcAsProfile,
+            };
         }
 
-        private static bool UnitHasNpcFlag(WoWUnit Unit,string FlagString)
-        {
-            return Unit.UnitNPCFlags.HasFlag((UnitNPCFlags)Enum.Parse(typeof(UnitNPCFlags), FlagString));
-        }
+        private static PluginSettings Settings = PluginSettings.CurrentSetting;
 
         private static void ScanForNearbyNpcs()
-        {
-            PluginSettings Settings = PluginSettings.CurrentSetting;
-
-            Npc.FactionType PlyFactionNpcType;
+        {            
             List<WoWUnit> NpcList = ObjectManager.GetObjectWoWUnit();
             foreach (WoWUnit NpcUnit in NpcList)
             {
-                string VendorItemClass = "None";
-                string NpcType = "None";
-                string NpcTypeText = GetNpcTypeText(NpcUnit.Guid);
-                PlyFactionNpcType = Vars.NeutralNPC;
-                string FactionStatus = NpcUnit.Reaction.ToString();
-                bool CreateNpcEntry = false;
-
                 // VendorItemClass and NpcType Logic
-                if (UnitHasNpcFlag(NpcUnit, "SellsAmmo"))
-                {
-                    NpcType = "Vendor";
-                    VendorItemClass = "Arrow";
-                    CreateNpcEntry = true;
-                }
-                if (UnitHasNpcFlag(NpcUnit, "CanTrain"))
-                {
-                    if (NpcTypeText == Vars.MeClassTrainerNpcType)
-                    {
-                        NpcType = Vars.MeClassNpcType;
-                        CreateNpcEntry = true;
-                    }
-                }
-                
+                string NpcTypeText = NpcUnit.GetTypeText();
+                List<string> NpcTypes = new List<string> { };
+                List<string> NpcVendorClasses = new List<string> { };                
+                if (NpcUnit.HasNpcFlag("MailInfo"))  { NpcTypes.Add("Mailbox"); } // If Mailbox
+                if (NpcUnit.HasNpcFlag("CanRepair")) { NpcTypes.Add("Repair"); } // If npc is Repair or Vendor
+                if (NpcUnit.HasNpcFlag("SellsAmmo")) { NpcVendorClasses.Add("Arrow"); NpcVendorClasses.Add("Bullet"); }
+                if (NpcUnit.HasNpcFlag("CanTrain"))  { if (NpcTypeText == Vars.MeClassTrainerNpcType) { NpcTypes.Add(Vars.MeClassNpcType); } }// If NPC is class Trainer            
+                if (NpcUnit.HasNpcFlag("SellsFood")) { NpcVendorClasses.Add("Food"); } // If npc sells food
+                if (NpcUnit.HasNpcFlag("CanSell")) { if (!NpcTypes.Contains("Repair")) { NpcTypes.Add("Vendor"); } };
+                if (NpcUnit.HasNpcFlag("SellsReagents")) { NpcVendorClasses.Add("Reagent"); }; // Reagent / SellsReagents
+                if (NpcTypeText.Contains("Trade Supplies")) { NpcVendorClasses.Add("TradeGoods"); }; // TradeGoods / Npc type <Trade Supplies>
+                if (NpcTypeText.Contains("Trainer")) { NpcTypes.Add(NpcTypeText.TrimSubString("Trainer").Trim() + "Trainer");  }
+
                 // Faction Logic
+                Npc.FactionType PlyFactionNpcType = Vars.NeutralNPC;
+                string FactionStatus = NpcUnit.Reaction.ToString();
                 if (FactionStatus == "Friendly" || FactionStatus == "Honored" || FactionStatus == "Revered" || FactionStatus == "Exalted")
                 {
                     if (ObjectManager.Me.IsAlliance)
-                    {
-                        PlyFactionNpcType = Vars.AllianceNPC;
-                    }
+                    { PlyFactionNpcType = Vars.AllianceNPC; }
                     else if (ObjectManager.Me.IsHorde)
-                    {
-                        PlyFactionNpcType = Vars.HordeNPC;
-                    }
+                    { PlyFactionNpcType = Vars.HordeNPC; }
                 }
 
-                if (!NpcDB.NpcSimilarExist((ContinentId)Usefuls.ContinentId, NpcUnit.Entry, NpcUnit.Position, PlyFactionNpcType) && CreateNpcEntry)
+                // Create combinations of NpcType/VendorItemClass until both are "None"
+                List<Dictionary<string,string>> NpcEntryToAdd = new List<Dictionary<string,string>> {}; // Key:VendorItemClass Value:NpcType  Ex. "Arrow":"Vendor"
+                bool CreateNpcEntry = false;
+                int EntryCounter = 0;
+                while (true)
                 {
-                    Logging.Write(Plugin.LogName + "Adding Npc " + NpcUnit.Name + " of type " + NpcTypeText + " to NpcDB.");
-                    Npc NewNpc = CreateNewNPC(NpcUnit.Name, NpcUnit.Entry, PlyFactionNpcType, (ContinentId)Usefuls.ContinentId, NpcUnit.Position, NpcUnit.IsFlying, (Npc.NpcType)Enum.Parse(typeof(Npc.NpcType), NpcType), (Npc.NpcVendorItemClass)Enum.Parse(typeof(Npc.NpcVendorItemClass), VendorItemClass));
-                    NpcDB.AddNpc(NewNpc, Settings.SaveNpc, Settings.AddNpcAsProfile);
+                    string FinalNpcType = "None";
+                    string FinalVendorClass = "None";
+                    if (NpcTypes.TryGetElement(EntryCounter, out string varNpcType))
+                    { FinalNpcType = varNpcType; }
+                    if (NpcVendorClasses.TryGetElement(EntryCounter, out string varVendorClass))
+                    { FinalVendorClass = varVendorClass; }
+                    if (!(FinalNpcType == "None" && FinalVendorClass == "None"))
+                    {
+                        var NpcEntry = new Dictionary<string,string> {};
+                        NpcEntry.Add(FinalNpcType, FinalVendorClass);
+                        NpcEntryToAdd.Add(NpcEntry);
+                        CreateNpcEntry = true;
+                    }
+                    else { break; }
+                    EntryCounter++;
+                }
+
+                // Foreach combination of NpcType/VendorItemClass Add an NPC entry for that NPC // (Workaround that wRobot only allows one of each per npc)
+                if (CreateNpcEntry && !NpcDB.NpcSimilarExist((ContinentId)Usefuls.ContinentId, NpcUnit.Entry, NpcUnit.Position, PlyFactionNpcType))
+                {
+                    List<Npc> NpcEntryList = new List<Npc> { };
+                    foreach (Dictionary<string,string> NpcEntry in NpcEntryToAdd)
+                    {
+                        foreach (KeyValuePair<string,string> VendorData in NpcEntry)
+                        {
+                            Logging.Write(Plugin.LogName + $"Adding Npc {NpcUnit.Name} of Type:{VendorData.Key}, ItemClass:{VendorData.Value} to NpcDB.");
+                            Npc NewNpc = CreateNewNPC(NpcUnit.Name, NpcUnit.Entry, PlyFactionNpcType, (ContinentId)Usefuls.ContinentId, NpcUnit.Position, NpcUnit.IsFlying, (Npc.NpcType)Enum.Parse(typeof(Npc.NpcType), VendorData.Key), (Npc.NpcVendorItemClass)Enum.Parse(typeof(Npc.NpcVendorItemClass), VendorData.Value));
+                            NpcEntryList.Add(NewNpc);
+                        }
+                    }
+
+                    //NpcDB.AddNpcRange(NpcEntryList, Settings.SaveNpc, Settings.AddNpcAsProfile);
+                    NpcDB.ListNpc.AddRange(NpcEntryList);
+                    //NpcDB.
+
+                    //Npc NewNpc = CreateNewNPC(NpcUnit.Name, NpcUnit.Entry, PlyFactionNpcType, (ContinentId)Usefuls.ContinentId, NpcUnit.Position, NpcUnit.IsFlying, (Npc.NpcType)Enum.Parse(typeof(Npc.NpcType), NpcType), (Npc.NpcVendorItemClass)Enum.Parse(typeof(Npc.NpcVendorItemClass), VendorItemClass));
+                    //NpcDB.AddNpc(NewNpc, Settings.SaveNpc, Settings.AddNpcAsProfile);
                 }                
             }
         }

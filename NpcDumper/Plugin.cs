@@ -32,12 +32,16 @@ namespace NpcDumper
 {
     public class Plugin
     {
-        public static readonly string Name = "TrainerScanner";
+        public static readonly string Name = "NpcDbOverride";
         public static readonly string LogName = "[" + Plugin.Name + "]: ";
         public static bool IsRunning;
 
         public static void Start()
         {
+            if (PluginSettings.CurrentSetting.DisableWrobotScanning)
+            {
+                SettingsOverride.TrainerSettingsOverride();
+            }
             IsRunning = true;
             Plugin.Tick();
         }
