@@ -122,6 +122,7 @@ namespace NpcDumper
             List<WoWUnit> NpcList = ObjectManager.GetObjectWoWUnit();
             foreach (WoWUnit NpcUnit in NpcList)
             {
+                if (new Vector3(0f, 0f, 0f) == NpcUnit.Position) { continue; } //Attempt fix 0,0,0 entry bug
                 // Faction Logic
                 Npc.FactionType PlyFactionNpcType = Vars.NeutralNPC;
                 string FactionStatus = NpcUnit.Reaction.ToString();
@@ -136,7 +137,7 @@ namespace NpcDumper
                 if (NpcDB.NpcSimilarExist((ContinentId)Usefuls.ContinentId, NpcUnit.Entry, NpcUnit.Position, PlyFactionNpcType)) { continue; }// Improve Performance
                 string NpcTypeText = NpcUnit.GetTypeText(); // Get Text under NPC Name <Paladin Trainer>
                 if (NpcTypeText.Contains("Pet Trainer") || NpcTypeText.Contains("Weaponsmith Trainer")) { continue; } // Fix Edgecases
-                if (new Vector3(0f,0f,0f) == NpcUnit.Position) { continue; } //Attempt fix 0,0,0 entry bug
+                
 
                 // VendorItemClass and NpcType Logic                
                 List<string> NpcTypes = new List<string> { };
@@ -150,7 +151,7 @@ namespace NpcDumper
                 if (NpcUnit.HasNpcFlag("CanSell")) { if (!NpcTypes.Contains("Repair")) { NpcTypes.Add("Vendor"); } };
                 if (NpcUnit.HasNpcFlag("SellsReagents")) { NpcVendorClasses.Add("Reagent"); }; // Reagent / SellsReagents
                 if (NpcTypeText.Contains("Trade Supplies")) { NpcVendorClasses.Add("TradeGoods"); }; // TradeGoods / Npc type <Trade Supplies>
-                if (NpcTypeText.Contains("Trainer")) { NpcTypes.Add(NpcTypeText.TrimSubString("Trainer").Trim() + "Trainer");  } // Trick to try to hit all trainers at once
+                if (NpcTypeText.Contains("Trainer")) { NpcTypes.Add(NpcTypeText.TrimSubString("Trainer").Trim() + "Trainer");  } // Try to hit all trainers at once
 
                 // Create combinations of NpcType/VendorItemClass until both are "None"
                 List<Dictionary<string,string>> NpcEntryToAdd = new List<Dictionary<string,string>> {}; // List of: Key:NpcType Value:VendorItemClass  Ex. List[1]="Vendor":"Arrow"
