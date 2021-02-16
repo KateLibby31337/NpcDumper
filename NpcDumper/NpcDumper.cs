@@ -108,9 +108,9 @@ namespace NpcDumper
             {
                 if (Object.IsMailbox)
                 {
-                    Npc Mailbox = CreateNewNPC("Mailbox", Object.Entry, Npc.FactionType.Neutral, (ContinentId)Usefuls.ContinentId, Object.Position, ObjectManager.Me.IsFlying, Npc.NpcType.Mailbox, Npc.NpcVendorItemClass.None);
-                    if (!NpcDB.NpcSimilarExist(Mailbox.ContinentId,Mailbox.Entry,Mailbox.Position,Mailbox.Faction))
+                    if (!NpcDB.NpcSimilarExist((ContinentId)Usefuls.ContinentId, Object.Entry, Object.Position, Npc.FactionType.Neutral))
                     {
+                        Npc Mailbox = CreateNewNPC("Mailbox", Object.Entry, Npc.FactionType.Neutral, (ContinentId)Usefuls.ContinentId, Object.Position, ObjectManager.Me.IsFlying, Npc.NpcType.Mailbox, Npc.NpcVendorItemClass.None);
                         Logging.Write(Plugin.LogName + $"Adding Npc {Mailbox.Name} of Type:{Mailbox.Type}, ItemClass:{Mailbox.VendorItemClass} to NpcDB.");
                         NpcDB.AddNpc(Mailbox,Mailbox.Save,Mailbox.CurrentProfileNpc);
                     }
@@ -120,21 +120,6 @@ namespace NpcDumper
             List<WoWUnit> NpcList = ObjectManager.GetObjectWoWUnit();
             foreach (WoWUnit NpcUnit in NpcList)
             {
-                // VendorItemClass and NpcType Logic
-                string NpcTypeText = NpcUnit.GetTypeText();
-                List<string> NpcTypes = new List<string> { };
-                List<string> NpcVendorClasses = new List<string> { };                
-                
-                //if (NpcUnit.HasNpcFlag("MailInfo"))  { NpcTypes.Add("Mailbox"); } // If Mailbox
-                if (NpcUnit.HasNpcFlag("CanRepair")) { NpcTypes.Add("Repair"); } // If npc is Repair or Vendor
-                if (NpcUnit.HasNpcFlag("SellsAmmo")) { NpcVendorClasses.Add("Arrow"); NpcVendorClasses.Add("Bullet"); }
-                //if (NpcUnit.HasNpcFlag("CanTrain"))  { if (NpcTypeText == Vars.MeClassTrainerNpcType) { NpcTypes.Add(Vars.MeClassNpcType); } }// If NPC is class Trainer            
-                if (NpcUnit.HasNpcFlag("SellsFood")) { NpcVendorClasses.Add("Food"); } // If npc sells food
-                if (NpcUnit.HasNpcFlag("CanSell")) { if (!NpcTypes.Contains("Repair")) { NpcTypes.Add("Vendor"); } };
-                if (NpcUnit.HasNpcFlag("SellsReagents")) { NpcVendorClasses.Add("Reagent"); }; // Reagent / SellsReagents
-                if (NpcTypeText.Contains("Trade Supplies")) { NpcVendorClasses.Add("TradeGoods"); }; // TradeGoods / Npc type <Trade Supplies>
-                if (NpcTypeText.Contains("Trainer")) { NpcTypes.Add(NpcTypeText.TrimSubString("Trainer").Trim() + "Trainer");  }
-
                 // Faction Logic
                 Npc.FactionType PlyFactionNpcType = Vars.NeutralNPC;
                 string FactionStatus = NpcUnit.Reaction.ToString();
@@ -145,6 +130,25 @@ namespace NpcDumper
                     else if (ObjectManager.Me.IsHorde)
                     { PlyFactionNpcType = Vars.HordeNPC; }
                 }
+
+                // Improve Performance
+                if (NpcDB.NpcSimilarExist((ContinentId)Usefuls.ContinentId, NpcUnit.Entry, NpcUnit.Position, PlyFactionNpcType))
+                {
+                    continue;
+                }
+
+                // VendorItemClass and NpcType Logic
+                string NpcTypeText = NpcUnit.GetTypeText();
+                List<string> NpcTypes = new List<string> { };
+                List<string> NpcVendorClasses = new List<string> { };                
+                
+                if (NpcUnit.HasNpcFlag("CanRepair")) { NpcTypes.Add("Repair"); } // If npc is Repair or Vendor
+                if (NpcUnit.HasNpcFlag("SellsAmmo")) { NpcVendorClasses.Add("Arrow"); NpcVendorClasses.Add("Bullet"); }
+                if (NpcUnit.HasNpcFlag("SellsFood")) { NpcVendorClasses.Add("Food"); } // If npc sells food
+                if (NpcUnit.HasNpcFlag("CanSell")) { if (!NpcTypes.Contains("Repair")) { NpcTypes.Add("Vendor"); } };
+                if (NpcUnit.HasNpcFlag("SellsReagents")) { NpcVendorClasses.Add("Reagent"); }; // Reagent / SellsReagents
+                if (NpcTypeText.Contains("Trade Supplies")) { NpcVendorClasses.Add("TradeGoods"); }; // TradeGoods / Npc type <Trade Supplies>
+                if (NpcTypeText.Contains("Trainer")) { NpcTypes.Add(NpcTypeText.TrimSubString("Trainer").Trim() + "Trainer");  }
 
                 // Create combinations of NpcType/VendorItemClass until both are "None"
                 List<Dictionary<string,string>> NpcEntryToAdd = new List<Dictionary<string,string>> {}; // Key:VendorItemClass Value:NpcType  Ex. "Arrow":"Vendor"
@@ -170,7 +174,7 @@ namespace NpcDumper
                 }
 
                 // Foreach combination of NpcType/VendorItemClass Add an NPC entry for that NPC // (Workaround that wRobot only allows one of each per npc)
-                if (CreateNpcEntry && !NpcDB.NpcSimilarExist((ContinentId)Usefuls.ContinentId, NpcUnit.Entry, NpcUnit.Position, PlyFactionNpcType))
+                if (CreateNpcEntry)
                 {
                     List<Npc> NpcEntryList = new List<Npc> { };
                     foreach (Dictionary<string,string> NpcEntry in NpcEntryToAdd)
@@ -182,13 +186,7 @@ namespace NpcDumper
                             NpcEntryList.Add(NewNpc);
                         }
                     }
-
-                    //NpcDB.AddNpcRange(NpcEntryList, Settings.SaveNpc, Settings.AddNpcAsProfile);
                     NpcDB.ListNpc.AddRange(NpcEntryList);
-                    //NpcDB.
-
-                    //Npc NewNpc = CreateNewNPC(NpcUnit.Name, NpcUnit.Entry, PlyFactionNpcType, (ContinentId)Usefuls.ContinentId, NpcUnit.Position, NpcUnit.IsFlying, (Npc.NpcType)Enum.Parse(typeof(Npc.NpcType), NpcType), (Npc.NpcVendorItemClass)Enum.Parse(typeof(Npc.NpcVendorItemClass), VendorItemClass));
-                    //NpcDB.AddNpc(NewNpc, Settings.SaveNpc, Settings.AddNpcAsProfile);
                 }                
             }
         }
