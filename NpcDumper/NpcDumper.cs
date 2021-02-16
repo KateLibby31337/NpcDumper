@@ -137,8 +137,14 @@ namespace NpcDumper
                     continue;
                 }
 
-                // VendorItemClass and NpcType Logic
                 string NpcTypeText = NpcUnit.GetTypeText();
+                // More Edgecases
+                if (NpcTypeText.Contains("Pet Trainer") || NpcTypeText.Contains("Weaponsmith Trainer"))
+                {
+                    continue;
+                }
+
+                // VendorItemClass and NpcType Logic                
                 List<string> NpcTypes = new List<string> { };
                 List<string> NpcVendorClasses = new List<string> { };                
                 
