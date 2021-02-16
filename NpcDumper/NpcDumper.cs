@@ -81,7 +81,6 @@ namespace NpcDumper
 
     public class NpcDumper
     {
-
         private static Npc CreateNewNPC(string NpcName, int NpcEntry, Npc.FactionType NpcFaction, ContinentId NpcContinentId, Vector3 NpcPosition, bool NpcCanFlyTo, Npc.NpcType NpcType, Npc.NpcVendorItemClass VendorItem)
         {
             return new Npc
@@ -102,7 +101,22 @@ namespace NpcDumper
         private static PluginSettings Settings = PluginSettings.CurrentSetting;
 
         private static void ScanForNearbyNpcs()
-        {            
+        {
+
+            List<WoWGameObject> ObjectList = ObjectManager.GetWoWGameObjectByName("Mailbox");
+            foreach (WoWGameObject Object in ObjectList)
+            {
+                if (Object.IsMailbox)
+                {
+                    Npc Mailbox = CreateNewNPC("Mailbox", Object.Entry, Npc.FactionType.Neutral, (ContinentId)Usefuls.ContinentId, Object.Position, ObjectManager.Me.IsFlying, Npc.NpcType.Mailbox, Npc.NpcVendorItemClass.None);
+                    if (!NpcDB.NpcSimilarExist(Mailbox.ContinentId,Mailbox.Entry,Mailbox.Position,Mailbox.Faction))
+                    {
+                        Logging.Write(Plugin.LogName + $"Adding Npc {Mailbox.Name} of Type:{Mailbox.Type}, ItemClass:{Mailbox.VendorItemClass} to NpcDB.");
+                        NpcDB.AddNpc(Mailbox,Mailbox.Save,Mailbox.CurrentProfileNpc);
+                    }
+                }
+            }
+
             List<WoWUnit> NpcList = ObjectManager.GetObjectWoWUnit();
             foreach (WoWUnit NpcUnit in NpcList)
             {
@@ -110,10 +124,11 @@ namespace NpcDumper
                 string NpcTypeText = NpcUnit.GetTypeText();
                 List<string> NpcTypes = new List<string> { };
                 List<string> NpcVendorClasses = new List<string> { };                
-                if (NpcUnit.HasNpcFlag("MailInfo"))  { NpcTypes.Add("Mailbox"); } // If Mailbox
+                
+                //if (NpcUnit.HasNpcFlag("MailInfo"))  { NpcTypes.Add("Mailbox"); } // If Mailbox
                 if (NpcUnit.HasNpcFlag("CanRepair")) { NpcTypes.Add("Repair"); } // If npc is Repair or Vendor
                 if (NpcUnit.HasNpcFlag("SellsAmmo")) { NpcVendorClasses.Add("Arrow"); NpcVendorClasses.Add("Bullet"); }
-                if (NpcUnit.HasNpcFlag("CanTrain"))  { if (NpcTypeText == Vars.MeClassTrainerNpcType) { NpcTypes.Add(Vars.MeClassNpcType); } }// If NPC is class Trainer            
+                //if (NpcUnit.HasNpcFlag("CanTrain"))  { if (NpcTypeText == Vars.MeClassTrainerNpcType) { NpcTypes.Add(Vars.MeClassNpcType); } }// If NPC is class Trainer            
                 if (NpcUnit.HasNpcFlag("SellsFood")) { NpcVendorClasses.Add("Food"); } // If npc sells food
                 if (NpcUnit.HasNpcFlag("CanSell")) { if (!NpcTypes.Contains("Repair")) { NpcTypes.Add("Vendor"); } };
                 if (NpcUnit.HasNpcFlag("SellsReagents")) { NpcVendorClasses.Add("Reagent"); }; // Reagent / SellsReagents
