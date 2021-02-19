@@ -136,7 +136,7 @@ namespace NpcDumper
                 
                 if (NpcDB.NpcSimilarExist((ContinentId)Usefuls.ContinentId, NpcUnit.Entry, NpcUnit.Position, PlyFactionNpcType)) { continue; }// Improve Performance
                 string NpcTypeText = NpcUnit.GetTypeText(); // Get Text under NPC Name <Paladin Trainer>
-                if (NpcTypeText.Contains("Pet Trainer") || NpcTypeText.Contains("Weaponsmith Trainer")) { continue; } // Fix Edgecases
+                if (NpcTypeText.Contains("Pet Trainer") || NpcTypeText.Contains("Weaponsmith Trainer")) || NpcTypeText.Contains("Demon Trainer")) { continue; } // Fix Edgecases
                 
 
                 // VendorItemClass and NpcType Logic                
